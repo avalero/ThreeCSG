@@ -157,10 +157,10 @@ export default class BSPNode {
       } else {
         this.divider = bestDivider.clone();
         this.triangles = [];
-        this.addTriangles(triangles);
+        this.addTrianglesIterative(triangles);
       }
     } else {
-      this.addTriangles(triangles);
+      this.addTrianglesIterative(triangles);
     }
   }
 
@@ -171,7 +171,6 @@ export default class BSPNode {
 
   public toNumberArray(): number[] {
 
-    debugger;
     const arr = [];
     // fill with triangles
 
@@ -239,7 +238,6 @@ export default class BSPNode {
       }
     }
 
-    debugger;
     let backOffset: number = frontOffset + frontLength;
     const backLength: number = arr[backOffset];
     backOffset += 1;
@@ -282,7 +280,57 @@ export default class BSPNode {
 
   }
 
+  private addTrianglesIterative(triangles: Triangle[]) {
+    const heap: Array<{ triangles: Triangle[]; node: BSPNode }> = [];
+    let [frontTriangles, backTriangles] = this.addTriangles(triangles);
+
+    if (backTriangles.length) {
+      if (!this.back) this.back = new BSPNode();
+      heap.push({
+        triangles: backTriangles,
+        node: this.back,
+      });
+    }
+
+    if (frontTriangles.length) {
+      if (!this.front) this.front = new BSPNode();
+      heap.push({
+        triangles: frontTriangles,
+        node: this.front,
+      });
+    }
+
+    while (heap.length > 0) {
+      const { triangles, node } = heap.pop() as {
+        triangles: Triangle[];
+        node: BSPNode;
+      };
+      [frontTriangles, backTriangles] = node.addTriangles(triangles);
+
+      if (backTriangles.length) {
+        if (!node.back) node.back = new BSPNode();
+        heap.push({
+          triangles: backTriangles,
+          node: node.back,
+        });
+      }
+
+      if (frontTriangles.length) {
+        if (!node.front) node.front = new BSPNode();
+        heap.push({
+          triangles: frontTriangles,
+          node: node.front,
+        });
+      }
+    }
+  }
+
   private addTriangles(triangles: Triangle[]) {
+    if (!this.divider) {
+      const bestTriangle = chooseDividingTriangle(triangles);
+      this.divider = bestTriangle ? bestTriangle.clone() : triangles[0];
+    }
+
     const frontTriangles = [];
     const backTriangles = [];
 
@@ -348,20 +396,7 @@ export default class BSPNode {
       }
     }
 
-    if (frontTriangles.length) {
-      if (this.front === undefined) {
-        this.front = new BSPNode(frontTriangles);
-      } else {
-        this.front.addTriangles(frontTriangles);
-      }
-    }
-    if (backTriangles.length) {
-      if (this.back === undefined) {
-        this.back = new BSPNode(backTriangles);
-      } else {
-        this.back.addTriangles(backTriangles);
-      }
-    }
+    return [frontTriangles, backTriangles];
   }
 
   invert() {
